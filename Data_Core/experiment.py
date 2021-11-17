@@ -244,6 +244,7 @@ class experiment:
         
         f = interp2d(new_x_values,new_y_values,new_map_values,kind='cubic')
         
+        
         xnew=np.arange(min(x_values),max(x_values),0.1)
         ynew=np.arange(min(y_values),max(y_values),0.1)
         subplots()
@@ -252,6 +253,7 @@ class experiment:
         ylabel('y (mm)')
         xlabel('x (mm)')
         title('Intensity of line ' + str(round(ritz,2))+ ' nm')
+        
         
         
         return new_x_values, new_y_values, new_map_values

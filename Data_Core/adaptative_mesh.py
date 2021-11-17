@@ -11,33 +11,21 @@ from matplotlib.pyplot import *
 import numpy as np
 from skimage import io, filters
 
-import matplotlib
-
 
 
 class Block:
     
     """
-    
     Instance is a block of a given mesh
-    
     """
     
     def __init__(self, coordinates,level=0):
         
-        #list that contains coodinates as [[x0,y0]],
-        # 1--2
-        # |  |
-        # 0--3
         self.coordinates = np.array(coordinates)
-        
-        #bool to store if it is already tested to the criteria
         self.is_checked = False
-        
-        #number of iteration level it belongs
         self.level = level
         
-        ##store connections between points to plot lines of reference
+        ##connections to plot lines of reference
         x0 = coordinates[0][0]
         x1 = coordinates[3][0]
         y0 = coordinates[0][1]
@@ -46,28 +34,25 @@ class Block:
     
     def check_block(self,threshold,image):
         
-        """
-        Method to check if a block should be divided
-        """
-        
-        #limits of the image
         x_min = int(self.coordinates[0][0])
         x_max = int(self.coordinates[3][0])
                                         
         y_min = int(self.coordinates[0][1])
         y_max = int(self.coordinates[1][1])
                     
-        #compute the criteria
-        criteria, value = image.compute_criteria([[x_min,x_max],
+        criteria = image.compute_criteria([[x_min,x_max],
                                            [y_min,y_max]])
+        
+        value = np.mean(criteria)
         
         self.is_checked = True
         
-        #return true if it shoud be divided
+        value>threshold
+        
         return value>threshold
     
     def __repr__(self):
-        return "Block - "+ "x = [" + str(self.coordinates[0][0]) + ', ' +str(self.coordinates[3][0]) + ']\t' +   "y = [" + str(self.coordinates[0][1]) + ', ' +str(self.coordinates[1][1]) + ']\t' +", level " + str(self.level) + '\n'
+        return "Block \n"+str(self.coordinates)+",\n level " + str(self.level)
     
 
 class Mesh:
@@ -78,36 +63,17 @@ class Mesh:
     
     def __init__(self, image):
         
-        #list of current blocks that the present mesh has
         self.list_of_blocks = []
         
-        num_divs_x = 3
-        num_divs_y = 3
+        self.list_of_blocks.append(Block([[image.x_min, image.y_min],
+                                    [image.x_min, image.y_max],
+                                    [image.x_max, image.y_max],
+                                    [image.x_max, image.y_min]],level=0))
         
-        step_x = (image.x_max//num_divs_x)
-        step_y = (image.y_max//num_divs_y)
-        
-        for i in range(0,num_divs_x):
-            for j in range(0,num_divs_y):
-                xmin = image.x_min+i*step_x
-                xmax = image.x_min+(i+1)*step_x
-                ymin = image.x_min+j*step_y
-                ymax = image.x_min+(j+1)*step_y
-                
-                self.list_of_blocks.append(Block([[xmin,ymin],
-                                        [xmin, ymax],
-                                        [xmax, ymax],
-                                        [xmax, ymin]],level=0))
-                
-            
-        # store the image, shall be of type image, defined in class
         self.image = image
-    
-    def update_blocks(self,threshold):
+        self.coordinate_pairs=[]
         
-        """
-        Check if 
-        """
+    def update_blocks(self,threshold):
         
         new_list_of_blocks = []
         self.state = 0 #if 0 reached the end of update
@@ -173,17 +139,18 @@ class Mesh:
         
         self.list_of_blocks = new_list_of_blocks
         
-    def adaptative_mesh(self,threshold, max_num_divisions=2):
+    def adaptative_mesh(self,threshold, max_num_divisions=3):
         self.state = 1
         self.max_level = 0
         while self.max_level <= max_num_divisions and self.state == 1:
+            print('aqui')
 
                 self.update_blocks(threshold)
             
         
         
     def plot(self):
-            coordinate_pairs = []
+            
             levels = []
             #print(self.list_of_blocks)
             for i in range(0,len(self.list_of_blocks)):
@@ -194,30 +161,20 @@ class Mesh:
                     coordinate_pairs.append(self.list_of_blocks[i].coordinates[j])
                     levels.append(self.list_of_blocks[i].level)
             
-            coordinate_pairs = np.array(coordinate_pairs)
+            self.coordinate_pairs = np.array(self.coordinate_pairs)
             cycle_colors = rcParams['axes.prop_cycle'].by_key()['color']
             
-            for i in range(0,len(coordinate_pairs)):
+            for i in range(0,len(self.coordinate_pairs)):
 
-                plot(coordinate_pairs[i,0],coordinate_pairs[i,1],
+                plot(self.coordinate_pairs[i,0],self.coordinate_pairs[i,1],
                          'o',ms=7,markeredgecolor='k', color=cycle_colors[levels[i]])
-            
-            self.coordinate_pairs = np.unique(coordinate_pairs, axis=1)
-            return coordinate_pairs
-    
-    def get_coordinates_and_values(self, image):
-        x_values = []
-        y_values = []
-        map_values = []
-        for i in range(0, len(self.coordinate_pairs)):
-            x_values.append(self.coordinate_pairs[i][0])
-            y_values.append(self.coordinate_pairs[i][1])
-            #print(x_values[-1],y_values[-1])
-            map_values.append(image[self.coordinate_pairs[i][0]-1,
-                              self.coordinate_pairs[i][1]-1])
-            
-        return x_values, y_values, map_values
-    
+        
+            return self.coordinate_pairs
+        
+
+        
+      
+        
 class image:
     """
     A Class to contain images
@@ -228,13 +185,9 @@ class image:
         self.data_input()
         
         self.lims=lims
-        
         if lims:
             self.ROI_data = self.data[lims[0][0]:lims[0][1],lims[1][0]:lims[1][1]]
             self.ROI_data_gray = self.data_gray[lims[0][0]:lims[0][1],lims[1][0]:lims[1][1]]
-        else:
-            self.ROI_data = self.data
-            self.ROI_data_gray = self.data_gray
             
         self.x_min = 0
         self.y_min = 0
@@ -277,56 +230,40 @@ class image:
             criteria = filters.sobel(self.ROI_data_gray[lims[0][0]:lims[0][1],
                                                          lims[1][0]:lims[1][1]]) 
             
-            value = np.mean(criteria)
-            
-            max_value = np.max(self.ROI_data_gray[lims[0][0]:lims[0][1], 
-                               lims[1][0]:lims[1][1]])
-            
-            min_value = np.min (self.ROI_data_gray[lims[0][0]:lims[0][1], 
-                               lims[1][0]:lims[1][1]])
-            
-            #value = max_value - min_value 
-
         else:
             criteria = filters.sobel(self.ROI_data_gray)
-            value = 0
         
-        return criteria, value
+        return criteria
         
     def plot_criteria(self):
         title("Criteria")
         criteria =filters.sobel(self.ROI_data_gray)
         imshow(np.transpose(criteria))
         colorbar()
-            
-if __name__ == '__main__':
-    path='mocov_ini.png'
-    rock_image=image(path,lims=[[1300,1700],[400,800]])
-    my_mesh = Mesh(rock_image)
-    subplots(figsize=[20,10])
-    
-    subplot(131)
-    rock_image.plot_all()
-    
-    subplot(132)
-    rock_image.plot_ROI(gray=True)
-    print(my_mesh.list_of_blocks)
-    threshold = 0.5#0.75#0.05
-    
-    my_mesh.adaptative_mesh(threshold)
-    print(my_mesh.list_of_blocks)
-    coordinate = my_mesh.plot()
-    
-    subplot(133)
-    coordinate = my_mesh.plot()
-    rock_image.plot_criteria()
-    
-    x_values, y_values, map_values = my_mesh.get_coordinates_and_values(rock_image.ROI_data_gray)
-    
-    from scipy.interpolate import *
-    
-    f = interp2d(x_values,y_values,map_values)
-    subplots()
-    x_new = np.arange(0,400)
-    y_new = np.arange(0,400)
-    imshow(f(x_new, y_new))
+
+
+path=r'C:/Users/Diana/Desktop/INESC TEC 2021/Adaptative_Meshing/moscov_ini.jpg'
+rock_image=image(path,lims=[[1500,1700],[400,800]])
+my_mesh = Mesh(rock_image)
+
+subplots(figsize=[20,10])
+subplot(131)
+rock_image.plot_all()
+subplot(132)
+rock_image.plot_ROI(gray=True)
+print(my_mesh.list_of_blocks)
+threshold = .025
+
+my_mesh.adaptative_mesh(threshold)
+
+
+#print(my_mesh.list_of_blocks)
+coordinate = my_mesh.plot()
+print(coordinate)
+
+subplot(133)
+
+coordinate = my_mesh.plot()
+rock_image.plot_criteria()
+
+        
