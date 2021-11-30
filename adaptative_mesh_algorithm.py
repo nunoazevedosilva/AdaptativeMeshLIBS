@@ -311,7 +311,7 @@ if __name__ == '__main__':
     subplot(132)
     rock_image.plot_ROI(gray=True)
     print(my_mesh.list_of_blocks)
-    threshold = 0.5#0.75#0.05
+    threshold = 0.07#0.75#0.05
     
     my_mesh.adaptative_mesh(threshold)
     print(my_mesh.list_of_blocks)
